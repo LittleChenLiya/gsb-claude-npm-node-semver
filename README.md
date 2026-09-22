@@ -530,6 +530,9 @@ strings that they parse.
   generated range, then that is returned.
 * `subset(subRange, superRange)`: Return `true` if the `subRange` range is
   entirely contained by the `superRange` range.
+* `explainIntersection(ranges, options)`: Explain whether one or more
+  ranges share any version.  See
+  [Explaining Intersections](#explaining-intersections).
 
 Note that, since ranges may be non-contiguous, a version might not be
 greater than a range, less than a range, *or* satisfy a range!  For
@@ -541,6 +544,88 @@ satisfy the range.
 
 If you want to know if a version satisfies or does not satisfy a
 range, use the `satisfies(version, range)` function.
+
+### Explaining Intersections
+
+`explainIntersection(ranges, options)` takes an array of one or more
+ranges (a single range string or `Range` object also works) plus the
+usual `loose`/`includePrerelease` options, and decides whether all of
+them can be satisfied by the same version.
+
+When the ranges intersect, it returns the minimal witness version:
+
+```js
+const semver = require('semver')
+
+semver.explainIntersection(['>=1.2.0 <2', '>=1.5.0'])
+// => { intersects: true, version: '1.5.0' }
+```
+
+When they do not, it returns the conflicting comparator combinations,
+each tagged with the index of the range it came from:
+
+```js
+semver.explainIntersection(['<1.0.0', '>=1.0.0'])
+// => { intersects: false, conflicts: [ {
+//      reason: 'conflicting-bounds',
+//      comparators: [
+//        { index: 1, comparator: '>=1.0.0' },
+//        { index: 0, comparator: '<1.0.0' },
+//      ],
+//    } ] }
+```
+
+Conflict reasons are `'null-set'` (a comparator like `<0.0.0-0` that
+nothing can satisfy), `'conflicting-bounds'` (lower and upper bounds
+that leave no version between them), `'conflicting-equalities'`
+(incompatible exact versions), and `'prerelease-excluded'` (only
+prerelease versions could satisfy the merged bounds, but at least one
+range does not opt their version tuple in).  A conflict set is not
+guaranteed to be minimal, but its comparators are always genuinely
+unsatisfiable together.
+
+The decision is derived analytically from the normalized comparators
+and the version ordering, never by trial-and-error over candidate
+versions:
+
+1. Each range is a union of simple ranges (comparator AND-sets split on
+   `||`), so the intersection is the union over the cartesian product
+   of those simple ranges.
+2. Each combination is merged into its equality comparators, its
+   highest lower bound, and its lowest upper bound.  Contradictions
+   between them are reported as conflicts.
+3. The minimum of the merged interval is derived from the lower bound:
+   the bound itself for `>=`, `0.0.0-0` when unbounded, and the next
+   version in the ordering for `>`.
+4. With `includePrerelease` off, the default prerelease exclusion is
+   applied per original range: a prerelease witness only counts when
+   every range has a prerelease comparator for its `major.minor.patch`
+   tuple.  Merging bounds alone is not enough here, so when the
+   interval minimum is an excluded prerelease, the next admitted
+   candidate (the tuple's release version, or the lowest prerelease of
+   a tuple every range admits) is derived instead.
+5. Every derived witness is re-checked with each original
+   `Range.test()`, and build metadata never takes part in precedence,
+   so the returned version never carries a `+build` suffix.
+
+For example, `^1.0.0` and `>=1.1.0-beta <1.1.0` do not intersect by
+default (only `1.1.0` prereleases fit the merged bounds, and `^1.0.0`
+does not admit them), but they do with `includePrerelease: true`:
+
+```js
+semver.explainIntersection(['^1.0.0', '>=1.1.0-beta <1.1.0'])
+// => { intersects: false, conflicts: [ { reason: 'prerelease-excluded', ... } ] }
+semver.explainIntersection(['^1.0.0', '>=1.1.0-beta <1.1.0'],
+  { includePrerelease: true })
+// => { intersects: true, version: '1.1.0-beta' }
+```
+
+Run the demo to see usable versions and conflict sources printed for
+several scenarios (finishes in well under 90 seconds):
+
+```sh
+node scripts/explain-intersection-demo.js
+```
 
 ### Coercion
 
