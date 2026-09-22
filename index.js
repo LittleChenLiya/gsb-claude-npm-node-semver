@@ -41,6 +41,7 @@ const outside = require('./ranges/outside')
 const gtr = require('./ranges/gtr')
 const ltr = require('./ranges/ltr')
 const intersects = require('./ranges/intersects')
+const explainIntersection = require('./ranges/explain-intersection')
 const simplifyRange = require('./ranges/simplify')
 const subset = require('./ranges/subset')
 module.exports = {
@@ -80,6 +81,7 @@ module.exports = {
   gtr,
   ltr,
   intersects,
+  explainIntersection,
   simplifyRange,
   subset,
   SemVer,

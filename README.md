@@ -530,6 +530,47 @@ strings that they parse.
   generated range, then that is returned.
 * `subset(subRange, superRange)`: Return `true` if the `subRange` range is
   entirely contained by the `superRange` range.
+* `explainIntersection(ranges, options)`: Explain the intersection of one
+  or more ranges.  `ranges` must be an array containing at least one range
+  string or `Range` object.  The result is an object:
+  * `intersects`: `true` if some version satisfies every range.
+  * `version`: if `intersects` is true, the minimum version satisfying
+    all of the ranges (a "witness"), with no build metadata.  `null`
+    otherwise.
+  * `conflicts`: if `intersects` is false, a list of jointly
+    unsatisfiable comparator combinations.  Each entry has a `reason`
+    (`null-set`, `equal-mismatch`, `equal-excluded`,
+    `bounds-conflict`, or `prerelease-policy`) and a `comparators`
+    list of `{ range, comparator }` objects, where `range` is the index
+    of the range in the input array that contributed the comparator.
+    The conflict is not necessarily minimal, but the comparators of each
+    entry are genuinely unsatisfiable together with the ranges they came
+    from.
+
+  The result is derived analytically from the normalized comparators and
+  the version ordering, not by guessing versions: the intersection is the
+  union over every combination of OR branches (one branch per range) of
+  the conjunction of that branch's comparators.  Within a combination,
+  exact comparators pin a single candidate, and otherwise the strongest
+  lower and upper bounds delimit an interval whose minimum feasible
+  version is always one of a few boundary versions (the lower bound, the
+  version immediately after an exclusive lower bound, the release of a
+  comparator's core, or the lowest `-0` prerelease of a comparator's
+  core).  Every candidate is verified with each original range's own
+  `test()`, so the default prerelease exclusion is applied per original
+  range, exactly like `satisfies()`, and `includePrerelease` behaves
+  the same as it does everywhere else.
+
+  For example:
+
+  ```sh
+  node -e "console.log(require('semver').explainIntersection(['>=1.2.0 <2', '>=1.5.0']))"
+  # { intersects: true, version: '1.5.0', conflicts: [] }
+  node -e "console.log(require('semver').explainIntersection(['<1.0.0', '>=1.0.0']))"
+  # { intersects: false, version: null, conflicts: [ { reason: 'bounds-conflict',
+  #   comparators: [ { range: 0, comparator: '<1.0.0' },
+  #                  { range: 1, comparator: '>=1.0.0' } ] } ] }
+  ```
 
 Note that, since ranges may be non-contiguous, a version might not be
 greater than a range, less than a range, *or* satisfy a range!  For
@@ -666,6 +707,7 @@ The following modules are available:
 * `require('semver/functions/sort')`
 * `require('semver/functions/truncate')`
 * `require('semver/functions/valid')`
+* `require('semver/ranges/explain-intersection')`
 * `require('semver/ranges/gtr')`
 * `require('semver/ranges/intersects')`
 * `require('semver/ranges/ltr')`
