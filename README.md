@@ -542,6 +542,79 @@ satisfy the range.
 If you want to know if a version satisfies or does not satisfy a
 range, use the `satisfies(version, range)` function.
 
+### RangeIndex
+
+`RangeIndex` indexes a large set of id-tagged ranges so that a version
+query returns all matching ids without testing every range.
+
+```js
+const { RangeIndex } = require('semver')
+
+const index = new RangeIndex([
+  { id: 'app', range: '>=1.2.0 <2.0.0' },
+  { id: 'lib', range: '^1.0.0 || >=3.0.0' },
+  // each entry keeps its own includePrerelease option
+  { id: 'nightly', range: '>=2.0.0-alpha <2.0.0', options: { includePrerelease: true } },
+])
+
+index.query('1.5.0')        // => [ 'app', 'lib' ]
+index.query('2.0.0-beta.1') // => [ 'nightly' ]
+
+// atomic batch update: a bad range rejects the whole batch
+try {
+  index.update([
+    { id: 'app', range: '>=1.5.0 <2.0.0' }, // replace existing id
+    { id: 'lib', delete: true },            // delete an id
+    { id: 'broken', range: 'not a range' }, // throws: nothing is applied
+  ])
+} catch (err) {
+  // index is unchanged
+}
+```
+
+Entries are `{ id, range, options }` objects, `[id, range, options]`
+tuples, or a `Map` of id to range. `range` may be a range string or a
+`Range` object; matching semantics (including each range's own
+`includePrerelease` option) are exactly those of `Range.test()`.
+Duplicate ids are rejected.
+
+Methods:
+
+* `new RangeIndex(entries?, options?)`: build an index. `options` is
+  the default parse options for range strings and query versions.
+* `index.query(version)`: return a fresh sorted array of matching ids.
+  The result is a snapshot; later updates never mutate it.
+* `index.add(id, range, options?)`: add one entry. Throws on a
+  duplicate id or invalid range.
+* `index.delete(id)`: remove one entry, returning whether it existed.
+* `index.update(ops)`: atomically apply a batch of set/delete
+  operations. A delete followed by a set of the same id replaces it.
+  Any invalid range or duplicate id in the batch aborts the entire
+  update, leaving the index untouched.
+* `index.replaceAll(entries)`: atomically swap the whole contents.
+  Throws (leaving the index untouched) on any invalid entry.
+* `index.size`, `index.has(id)`, `index.get(id)`, `index.ids()`:
+  introspection.
+
+#### How queries are filtered
+
+Each entry is reduced to a conservative bounding interval
+`[low, high]` over the total SemVer ordering (not the lexicographic
+ordering of version strings, which would order `'10.0.0'` before
+`'2.0.0'`). Any version that `Range.test()` would accept lies inside
+its entry's interval, so entries whose interval does not contain the
+query version are skipped without calling `Range.test()`. Entries are
+kept in two sorted arrays (by low and by high bound); a query binary
+searches both, walks the smaller matching side, checks the opposite
+bound, and only calls `Range.test()` on the surviving candidates.
+
+Complexity, for `n` entries and `c` candidates after filtering:
+
+* build / atomic update: `O(n log n)` (one re-sort per commit)
+* query: `O(log n + m + c * T)`, where `m` is the smaller of the two
+  bound sides and `T` is the cost of `Range.test()`
+* memory: `O(n)`
+
 ### Coercion
 
 * `coerce(version, options)`: Coerces a string to semver if possible
