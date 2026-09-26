@@ -530,6 +530,22 @@ strings that they parse.
   generated range, then that is returned.
 * `subset(subRange, superRange)`: Return `true` if the `subRange` range is
   entirely contained by the `superRange` range.
+* `minCover(consumers, versions, options?)`: Pick the minimum number of
+  versions so that every consumer has at least one version it can use. All
+  matching is done with `satisfies`; range strings are never compared for
+  equality. At most `minCover.MAX_CONSUMERS` (20) consumers are supported.
+
+  `consumers` is an array of range strings, or objects of the shape
+  `{ name, range }`. Returns `{ covered, versions, assignments, uncovered }`:
+  `versions` is the minimum cover sorted in descending precedence order,
+  `assignments[i]` is the version assigned to consumer `i`, and `uncovered`
+  lists consumers that have no candidate version. When solutions tie in size,
+  the one with the lexicographically larger descending version list wins
+  (SemVer precedence; build metadata is ignored), and within an equivalence
+  class the first occurrence in `versions` is retained. Invalid version
+  entries are ignored; an invalid range throws a `TypeError` and more than 20
+  consumers throws a `RangeError`. Neither input array is modified. See
+  `scripts/min-cover-example.js` for a runnable example.
 
 Note that, since ranges may be non-contiguous, a version might not be
 greater than a range, less than a range, *or* satisfy a range!  For

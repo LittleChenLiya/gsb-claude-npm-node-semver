@@ -35,6 +35,7 @@ const satisfies = require('./functions/satisfies')
 const toComparators = require('./ranges/to-comparators')
 const maxSatisfying = require('./ranges/max-satisfying')
 const minSatisfying = require('./ranges/min-satisfying')
+const minCover = require('./ranges/min-cover')
 const minVersion = require('./ranges/min-version')
 const validRange = require('./ranges/valid')
 const outside = require('./ranges/outside')
@@ -74,6 +75,7 @@ module.exports = {
   toComparators,
   maxSatisfying,
   minSatisfying,
+  minCover,
   minVersion,
   validRange,
   outside,
