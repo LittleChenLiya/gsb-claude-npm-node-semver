@@ -81,6 +81,7 @@ const semverLtr = require('semver/ranges/ltr')
 const semverIntersects = require('semver/ranges/intersects')
 const semverSimplifyRange = require('semver/ranges/simplify')
 const semverRangeSubset = require('semver/ranges/subset')
+const semverMinCover = require('semver/ranges/min-cover')
 ```
 
 As a command-line utility:
@@ -530,6 +531,19 @@ strings that they parse.
   generated range, then that is returned.
 * `subset(subRange, superRange)`: Return `true` if the `subRange` range is
   entirely contained by the `superRange` range.
+* `minCover(versions, ranges)`: Return the smallest set of versions
+  from the `versions` list such that every consumer range in
+  `ranges` (at most 20) is satisfied by at least one chosen version.
+  The result is an object with `versions` (the chosen versions, in
+  descending order), `assignments` (the chosen version covering each
+  consumer range, in input order), and `uncovered` (the consumers
+  that no version can satisfy, empty on success; `versions` and
+  `assignments` are `null` when it is non-empty).  Ties between
+  minimal sets of the same size are broken in favor of the
+  lexicographically largest descending version list, and versions that
+  are equal ignoring build metadata keep their first input occurrence.
+  An invalid range, an invalid version, or more than 20 consumer
+  ranges throws.  See `docs/examples/min-cover.js` for a runnable example.
 
 Note that, since ranges may be non-contiguous, a version might not be
 greater than a range, less than a range, *or* satisfy a range!  For
