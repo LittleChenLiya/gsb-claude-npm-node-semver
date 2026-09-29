@@ -505,6 +505,16 @@ strings that they parse.
 * `validRange(range)`: Return the valid range or null if it's not valid.
 * `satisfies(version, range)`: Return true if the version satisfies the
   range.
+* `diagnoseRange(range)`: Parse a range for editor diagnostics without
+  throwing.  Returns the original `raw` string, a `valid` flag, the list of
+  `branches` (one per `||`), and every comparator inside each branch.  Each
+  branch and comparator carries a `range` of `[start, end]` offsets into the
+  raw input (including whitespace and hyphen ranges).  Invalid tokens are
+  returned individually in `errors` with the same kind of offset instead of
+  collapsing the whole range.  The `test(version)` method returns `true` or
+  `false` like `satisfies()` for a fully valid range, and `null` when an
+  invalid branch makes the result undecidable.  Also available as
+  `Range.diagnose(range)`.
 * `maxSatisfying(versions, range)`: Return the highest version in the list
   that satisfies the range, or `null` if none of them do.
 * `minSatisfying(versions, range)`: Return the lowest version in the list

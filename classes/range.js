@@ -213,6 +213,82 @@ class Range {
     }
     return false
   }
+
+  // Diagnostic entry point used by editors.  Unlike the constructor, this
+  // never throws and always returns the structure of the range, including
+  // the location of any invalid piece in the *original* input string.
+  static diagnose (range, options) {
+    options = parseOptions(options)
+    if (range instanceof Range) {
+      range = range.raw
+    } else if (range instanceof Comparator) {
+      range = range.value
+    } else if (typeof range !== 'string') {
+      range = `${range == null ? '' : range}`
+    }
+
+    const errors = []
+    const branches = splitOrBranches(range).map(branchPart => {
+      // A valid branch can be parsed on its own and tested independently;
+      // an invalid branch stays undecidable (null).  The single-branch
+      // Range parse is the source of truth for validity (it enforces the
+      // same length/leading-zero limits as satisfies()), while the token
+      // scan above supplies the precise locations.
+      const branch = diagnoseBranch(branchPart, range, options, errors)
+      const branchRaw = range.slice(branch.range[0], branch.range[1])
+      let branchRange = null
+      try {
+        branchRange = new Range(branchRaw, options)
+      } catch (er) {
+        if (!branch.errors.length) {
+          const error = makeDiagnosticError(
+            range,
+            branch.range[0],
+            branch.range[1],
+            er.message
+          )
+          branch.errors.push(error)
+          errors.push(error)
+        }
+      }
+      branch.valid = !!branchRange
+      branch.test = (version) => {
+        if (!branch.valid || !branchRange) {
+          return null
+        }
+        return branchRange.test(version)
+      }
+      branch.set = branchRange
+        ? branchRange.set.map(comps => comps.map(comp => comp.value))
+        : null
+      return branch
+    })
+    const valid = !errors.length
+
+    return {
+      raw: range,
+      valid,
+      branches,
+      errors,
+      test (version) {
+        // tri-state result:
+        //   true  - at least one valid branch matches
+        //   null  - no branch matched, but an invalid branch is undecidable
+        //   false - every branch is valid and none matched
+        let undecidable = false
+        for (const branch of branches) {
+          const result = branch.test(version)
+          if (result === true) {
+            return true
+          }
+          if (result === null) {
+            undecidable = true
+          }
+        }
+        return undecidable ? null : false
+      },
+    }
+  }
 }
 
 module.exports = Range
@@ -239,6 +315,264 @@ const BUILDSTRIPRE = new RegExp(src[t.BUILD], 'g')
 
 const isNullSet = c => c.value === '<0.0.0-0'
 const isAny = c => c.value === ''
+
+// Split a raw range on `||` without collapsing any whitespace, so the
+// position of every piece can still be mapped back to the original string.
+const splitOrBranches = (raw) => {
+  const parts = []
+  let start = 0
+  for (let i = 0; i < raw.length; i++) {
+    if (raw.charAt(i) === '|' && raw.charAt(i + 1) === '|') {
+      parts.push({ text: raw.slice(start, i), start, end: i })
+      i += 1
+      start = i + 1
+    }
+  }
+  parts.push({ text: raw.slice(start), start, end: raw.length })
+  return parts
+}
+
+const isWhitespace = ch => ch === ' ' || ch === '\t' || ch === '\n' ||
+  ch === '\r' || ch === '\f' || ch === '\v'
+
+// Match the runs of non-whitespace characters inside a part.
+const matchWords = (raw) => {
+  const words = []
+  for (let i = 0; i < raw.length; i++) {
+    if (isWhitespace(raw.charAt(i))) {
+      continue
+    }
+    const start = i
+    while (i < raw.length && !isWhitespace(raw.charAt(i))) {
+      i++
+    }
+    words.push({ text: raw.slice(start, i), start, end: i })
+  }
+  return words
+}
+
+const OPERATORS = ['>=', '<=', '>', '<', '=', '~>', '~', '^']
+
+// Turn a single whitespace-separated token (e.g. `>=1.2.3` or `1.x`) into
+// the canonical comparator strings it expands to, reusing the exact same
+// strict/loose grammar as Range#parseRange.  Returns null when invalid.
+const expandComparatorUnit = (comp, options) => {
+  try {
+    const loose = !!options.loose
+    const expanded = parseComparator(comp.replace(BUILDSTRIPRE, ''), options)
+    const units = expanded
+      .split(/\s+/)
+      .filter(part => part.length)
+      .map(part => replaceGTE0(part, options))
+    if (!loose) {
+      for (const unit of units) {
+        // eslint-disable-next-line no-new
+        new Comparator(unit, options)
+      }
+    } else {
+      for (let i = units.length - 1; i >= 0; i--) {
+        if (!units[i].match(re[t.COMPARATORLOOSE])) {
+          units.splice(i, 1)
+        }
+      }
+    }
+    return units
+  } catch (er) {
+    return null
+  }
+}
+
+const makeComparator = (value, options) => {
+  if (value === '') {
+    return null
+  }
+  try {
+    return new Comparator(value, options)
+  } catch (er) {
+    return null
+  }
+}
+
+const makeDiagnosticError = (raw, start, end, message) => ({
+  message,
+  input: raw.slice(start, end),
+  range: [start, end],
+})
+
+// Descriptor for one canonical comparator (e.g. one half of `^1`).
+const makeComparatorDiagnostic = (value, raw, start, end, op, options) => {
+  const comparator = makeComparator(value, options)
+  return {
+    raw: raw.slice(start, end),
+    range: [start, end],
+    operator: op,
+    semver: comparator && comparator.semver !== Comparator.ANY
+      ? comparator.semver.version
+      : null,
+    value,
+    test (version) {
+      if (!comparator) {
+        return null
+      }
+      return comparator.test(version)
+    },
+  }
+}
+
+const comparatorOperator = (value) => {
+  const m = value.match(re[t.GTLT])
+  return m && m[0] ? m[0] : ''
+}
+
+// Build the diagnostic description of a single `||` branch.
+// Any errors found are pushed onto `errors` with absolute offsets.
+const diagnoseBranch = (part, raw, options, errors) => {
+  const branchText = part.text
+  const absolute = offset => part.start + offset
+  const trimmed = branchText.trim()
+  const branchStart = absolute(branchStartOffset(branchText))
+  const branchEnd = absolute(branchEndOffset(branchText))
+
+  const base = {
+    raw: branchText,
+    range: [branchStart, branchEnd],
+    valid: true,
+    any: false,
+    hyphen: null,
+    comparators: [],
+    errors: [],
+  }
+
+  // An empty branch (`... || || ...`) means "any version", matching the
+  // behavior of the Range constructor.
+  if (!trimmed) {
+    base.any = true
+    base.range = [branchStart, branchStart]
+    return base
+  }
+
+  const words = matchWords(trimmed)
+  // The Range constructor collapses runs of whitespace to a single space
+  // before matching the hyphen grammar, so replicate that here.  A hyphen
+  // branch is exactly three words shaped like `from - to` whose collapsed
+  // form matches the hyphen grammar.
+  // Range#parseRange strips build metadata before hyphen replacement, so
+  // do the same here (the safe regex otherwise trips on long build strings).
+  const collapsed = words.map(word => word.text).join(' ')
+    .replace(BUILDSTRIPRE, '')
+  if (words.length === 3 && words[1].text === '-' &&
+      collapsed.match(looseHyphenRange(options))) {
+    return diagnoseHyphenBranch(base, words, branchStart, raw, options)
+  }
+
+  for (let i = 0; i < words.length; i++) {
+    const word = words[i]
+    let token = word.text
+    let tokenEnd = word.end
+    // glue a lone operator prefix to the following token, e.g. `>= 1.2.3`
+    if (OPERATORS.includes(token) && i + 1 < words.length) {
+      i += 1
+      token += words[i].text
+      tokenEnd = words[i].end
+    }
+    const start = branchStart + word.start
+    const end = branchStart + tokenEnd
+    const units = expandComparatorUnit(token, options)
+    if (!units) {
+      base.valid = false
+      const message = `Invalid comparator: ${token}`
+      const error = makeDiagnosticError(raw, start, end, message)
+      errors.push(error)
+      base.errors = [...(base.errors || []), error]
+      continue
+    }
+    for (const unit of units) {
+      const value = unit === '' ? '' : unit
+      base.comparators.push(makeComparatorDiagnostic(
+        value,
+        raw,
+        start,
+        end,
+        comparatorOperator(value),
+        options
+      ))
+    }
+  }
+
+  if (!base.comparators.length) {
+    base.any = true
+  }
+  return base
+}
+
+const looseHyphenRange = options =>
+  options.loose ? re[t.HYPHENRANGELOOSE] : re[t.HYPHENRANGE]
+
+const branchStartOffset = branchText => {
+  let i = 0
+  while (i < branchText.length && isWhitespace(branchText.charAt(i))) {
+    i++
+  }
+  return i
+}
+
+const branchEndOffset = branchText => {
+  let i = branchText.length
+  while (i > 0 && isWhitespace(branchText.charAt(i - 1))) {
+    i--
+  }
+  return i
+}
+
+// A branch shaped like `1.2.3 - 2.3.4`.  `words` is [from, '-', to]
+// located inside the trimmed branch text.
+const diagnoseHyphenBranch = (base, words, baseOffset, raw, options) => {
+  const fromWord = words[0]
+  const toWord = words[words.length - 1]
+  const start = baseOffset + fromWord.start
+  const end = baseOffset + toWord.end
+  base.hyphen = {
+    raw: raw.slice(start, end),
+    range: [start, end],
+  }
+
+  const collapsed = words.map(word => word.text).join(' ')
+    .replace(BUILDSTRIPRE, '')
+  const expanded = collapsed.replace(
+    looseHyphenRange(options),
+    hyphenReplace(options.includePrerelease)
+  ).split(/\s+/).filter(part => part.length)
+
+  const sides = [
+    { word: fromWord, x: isX(fromWord.text.match(looseXRangeIdentifier(options))[1]) },
+    { word: toWord, x: isX(toWord.text.match(looseXRangeIdentifier(options))[1]) },
+  ]
+  let unitIndex = 0
+  for (const side of sides) {
+    if (side.x) {
+      continue
+    }
+    const value = expanded[unitIndex++]
+    const compStart = baseOffset + side.word.start
+    const compEnd = baseOffset + side.word.end
+    base.comparators.push(makeComparatorDiagnostic(
+      value,
+      raw,
+      compStart,
+      compEnd,
+      comparatorOperator(value),
+      options
+    ))
+  }
+
+  if (!base.comparators.length) {
+    base.any = true
+  }
+  return base
+}
+
+const looseXRangeIdentifier = options =>
+  options.loose ? re[t.XRANGEPLAINLOOSE] : re[t.XRANGEPLAIN]
 
 // take a set of comparators and determine whether there
 // exists a version which can satisfy it
