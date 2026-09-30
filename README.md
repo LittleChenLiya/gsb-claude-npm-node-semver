@@ -39,6 +39,7 @@ const semver = require('semver')
 const SemVer = require('semver/classes/semver')
 const Comparator = require('semver/classes/comparator')
 const Range = require('semver/classes/range')
+const RangeIndex = require('semver/classes/range-index')
 
 // functions for working with versions
 const semverParse = require('semver/functions/parse')
@@ -542,6 +543,67 @@ satisfy the range.
 If you want to know if a version satisfies or does not satisfy a
 range, use the `satisfies(version, range)` function.
 
+### RangeIndex
+
+`RangeIndex` indexes a large number of ranges under caller-chosen
+string ids, so that a single version query returns every matching id
+without testing every range on every query.
+
+```js
+const { RangeIndex } = require('semver')
+
+const index = new RangeIndex([
+  { id: 'web', range: '^1.2.3' },
+  { id: 'api', range: '>=2.0.0 <3.0.0' },
+  // each range keeps its own options, including includePrerelease
+  { id: 'beta', range: '>=3.0.0-alpha.1 <3.0.0',
+    options: { includePrerelease: true } },
+])
+
+index.query('1.4.0') // ['web']
+index.query('3.0.0-beta.2') // ['beta']
+
+// batches are validated before they are applied, so a bad range
+// rejects the whole update and leaves the index unchanged
+try {
+  index.update({
+    delete: ['api'],
+    set: [
+      { id: 'web', range: '^1.4.0' }, // replaced: deleted and re-set
+      { id: 'oops', range: 'not a range' },
+    ],
+  })
+} catch (er) {
+  // nothing was deleted or added; the index is untouched
+}
+```
+
+* `new RangeIndex(entries)`: Build an index from an optional iterable
+  of `{ id, range, options }` entries.  `range` is anything the
+  `Range` constructor accepts; `options` (including
+  `includePrerelease`) is kept per range, exactly as if each `Range`
+  had been constructed by hand.  Duplicate ids are rejected.
+* `index.query(version)`: Return a fresh, sorted array of the ids
+  whose range matches `version`, with exactly the same results as
+  calling `test()` on each `Range` individually.  The returned array
+  is a snapshot and is not affected by later updates.
+* `index.update({ set, delete })`: Atomically apply a batch of
+  changes.  `set` is a list of `{ id, range, options }` entries and
+  `delete` is a list of ids to remove.  An id present in both is
+  replaced.  The whole batch is validated first: a duplicate id or a
+  range that fails to parse throws and leaves the index unchanged.
+* `index.has(id)`, `index.ids()`, `index.size`: Inspect the index.
+
+To avoid a full `Range.test()` sweep per query, every range is
+reduced to a conservative bounding interval in semver precedence
+order (never string order, so `10.0.0` sorts after `2.0.0`).
+Entries are kept sorted by their lower bound, so a binary search
+plus an upper-bound check discards ranges that cannot match, and
+`Range.test()` only runs for the surviving candidates.  With `n`
+indexed ranges and `k` ranges whose interval contains the query
+version, construction and updates are `O(n log n)`, and queries are
+`O(log n + k)` plus `k` `Range.test()` calls.
+
 ### Coercion
 
 * `coerce(version, options)`: Coerces a string to semver if possible
@@ -640,6 +702,7 @@ The following modules are available:
 * `require('semver/classes')`
 * `require('semver/classes/comparator')`
 * `require('semver/classes/range')`
+* `require('semver/classes/range-index')`
 * `require('semver/classes/semver')`
 * `require('semver/functions/clean')`
 * `require('semver/functions/cmp')`

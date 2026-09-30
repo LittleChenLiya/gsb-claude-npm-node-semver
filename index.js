@@ -31,6 +31,7 @@ const coerce = require('./functions/coerce')
 const truncate = require('./functions/truncate')
 const Comparator = require('./classes/comparator')
 const Range = require('./classes/range')
+const RangeIndex = require('./classes/range-index')
 const satisfies = require('./functions/satisfies')
 const toComparators = require('./ranges/to-comparators')
 const maxSatisfying = require('./ranges/max-satisfying')
@@ -70,6 +71,7 @@ module.exports = {
   truncate,
   Comparator,
   Range,
+  RangeIndex,
   satisfies,
   toComparators,
   maxSatisfying,
