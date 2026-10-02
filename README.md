@@ -81,6 +81,7 @@ const semverLtr = require('semver/ranges/ltr')
 const semverIntersects = require('semver/ranges/intersects')
 const semverSimplifyRange = require('semver/ranges/simplify')
 const semverRangeSubset = require('semver/ranges/subset')
+const semverDiagnoseRange = require('semver/ranges/diagnose')
 ```
 
 As a command-line utility:
@@ -530,6 +531,34 @@ strings that they parse.
   generated range, then that is returned.
 * `subset(subRange, superRange)`: Return `true` if the `subRange` range is
   entirely contained by the `superRange` range.
+* `diagnoseRange(range)`: Parse a range without throwing, and return a
+  diagnostic result describing exactly which parts of the original range
+  string could not be parsed.  This is intended for editors and other
+  tooling that need to point at incomplete or invalid input while a range
+  is being typed, rather than getting a single "invalid range" error.
+
+  The returned object has the following shape:
+
+  * `raw`: The original range string.
+  * `valid`: `true` if the entire range parsed cleanly.
+  * `errors`: A list of `{ message, start, end, raw }` objects, in source
+    order.  `start` and `end` are indices into the original range string,
+    so `raw.slice(start, end)` is always the exact offending source text.
+  * `branches`: The range split on `||`.  Each branch has `raw`,
+    `start`, `end`, `valid`, `errors`, a `comparators` list, a
+    parsed `range` (a `Range` object, or `null` when the branch has
+    errors), and a `test(version)` method.  Each entry in `comparators`
+    is a source-level condition with `type` (`'comparator'` or
+    `'hyphen-range'`), `raw`, `start`, `end`, and the `comparators`
+    it desugars to.  Whitespace and hyphen ranges are included in the
+    spans, so every condition maps back to the original string.
+  * `test(version)`: Returns `true` if some fully parsed branch matches
+    the version, `false` if nothing matched, or `undefined` when
+    unparseable parts of the range make it impossible to tell whether the
+    finished range would have matched.
+
+  For input that parses cleanly, `diagnoseRange(range).test(version)`
+  always agrees with `satisfies(version, range)`.
 
 Note that, since ranges may be non-contiguous, a version might not be
 greater than a range, less than a range, *or* satisfy a range!  For
@@ -666,6 +695,7 @@ The following modules are available:
 * `require('semver/functions/sort')`
 * `require('semver/functions/truncate')`
 * `require('semver/functions/valid')`
+* `require('semver/ranges/diagnose')`
 * `require('semver/ranges/gtr')`
 * `require('semver/ranges/intersects')`
 * `require('semver/ranges/ltr')`

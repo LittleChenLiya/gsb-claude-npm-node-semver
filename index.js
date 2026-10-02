@@ -32,6 +32,7 @@ const truncate = require('./functions/truncate')
 const Comparator = require('./classes/comparator')
 const Range = require('./classes/range')
 const satisfies = require('./functions/satisfies')
+const diagnoseRange = require('./ranges/diagnose')
 const toComparators = require('./ranges/to-comparators')
 const maxSatisfying = require('./ranges/max-satisfying')
 const minSatisfying = require('./ranges/min-satisfying')
@@ -71,6 +72,7 @@ module.exports = {
   Comparator,
   Range,
   satisfies,
+  diagnoseRange,
   toComparators,
   maxSatisfying,
   minSatisfying,
