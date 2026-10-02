@@ -587,6 +587,68 @@ ex.
 * `s.clean('      2.1.5   ')`: `'2.1.5'`
 * `s.clean('~1.0.0')`: `null`
 
+### Tag Resolution
+
+* `resolveTags(tags, requests, range, options)`: Resolve the tags of an
+  offline publish manifest (eg `latest`, `stable`, or custom tags) to
+  concrete, locked versions.
+
+Each value in the `tags` manifest must be either the name of another tag
+or a full valid version; anything else is an error.  The caller-provided
+`range` limits which versions may be locked.  The whole batch of
+`requests` is validated before anything is returned: a single failure
+rejects the entire batch and no partial results are returned.  The
+manifest object is never mutated (tags are not replaced by cached
+versions), and duplicate requests resolve to the same locked result.
+
+Each locked result is `{ tag, chain, raw, version }`:
+
+* `tag`: the requested tag.
+* `chain`: every tag reference followed, ending in the raw version
+  string, eg `['stable', 'release', 'v1.2.3']`.
+* `raw`: the version exactly as written in the manifest (eg `v1.2.3`).
+* `version`: the canonical version (eg `1.2.3`).  Like `valid()`,
+  build metadata is not part of the canonical form.
+
+Failures throw a `TagResolutionError` with a distinct `code`:
+
+* `ETAGMISSING`: a tag in the chain is not present in the manifest.
+* `ETAGCYCLE`: the chain loops back on itself.  `error.cycle` shows the
+  loop (eg `['stable', 'release', 'stable']`) and `error.cycleStart` is
+  the position in the chain where the cycle begins.
+* `ETAGRANGE`: the resolved version is not satisfied by the allowed
+  range.  Prerelease versions follow the usual rules: they only match
+  ranges that opt in via a prerelease comparator or the
+  `includePrerelease` option.
+* `ETAGINVALID`: a manifest value is neither a tag name nor a full
+  valid version.
+
+`resolveTags.highest(results)` picks the locked result with the highest
+precedence.  Precedence follows the SemVer specification: build metadata
+is ignored, so versions differing only in build metadata have equal
+precedence and the earliest one wins.
+
+```js
+const { resolveTags } = require('semver')
+
+const manifest = {
+  latest: 'stable',
+  stable: 'release',
+  release: 'v1.2.3',
+}
+
+const [locked] = resolveTags(manifest, ['stable'], '^1.0.0')
+// locked.chain   -> ['stable', 'release', 'v1.2.3']
+// locked.raw     -> 'v1.2.3'
+// locked.version -> '1.2.3'
+```
+
+A runnable demo is included:
+
+```
+$ node docs/resolve-tags-demo.js
+```
+
 ## Constants
 
 As a convenience, helper constants are exported to provide information about what `node-semver` supports:
@@ -661,6 +723,7 @@ The following modules are available:
 * `require('semver/functions/patch')`
 * `require('semver/functions/prerelease')`
 * `require('semver/functions/rcompare')`
+* `require('semver/functions/resolve-tags')`
 * `require('semver/functions/rsort')`
 * `require('semver/functions/satisfies')`
 * `require('semver/functions/sort')`
