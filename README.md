@@ -542,6 +542,64 @@ satisfy the range.
 If you want to know if a version satisfies or does not satisfy a
 range, use the `satisfies(version, range)` function.
 
+### Tag Resolution
+
+* `resolveTags(manifest, requests, options)`: Resolve a batch of tag
+  chains in an offline release manifest to pinned, definite versions.
+
+  A manifest maps tag names to either another tag name or a complete
+  valid version string:
+
+  ```js
+  const manifest = {
+    latest: 'v2.1.0',
+    stable: 'release',
+    release: 'v1.2.3',
+  }
+  ```
+
+  Each request names a starting tag and an allowed range:
+
+  ```js
+  semver.resolveTags(manifest, [
+    { tag: 'stable', range: '^1.0.0' },
+  ])
+  // [
+  //   {
+  //     tag: 'stable',
+  //     chain: ['stable', 'release'],
+  //     version: { raw: 'v1.2.3', version: '1.2.3' },
+  //   },
+  // ]
+  ```
+
+  The `chain` preserves the tags traversed, starting with the requested
+  tag.  Each result carries the original version spelling (`raw`, exactly
+  as written in the manifest) and the canonical version (`version`, the
+  same normalized form returned by `valid()`).
+
+  Resolution fails with a distinct error for each kind of problem:
+
+  * `resolveTags.MissingTagError` (`EMISSINGTAG`): a tag named in the
+    chain is not present in the manifest, or a tag value is neither a
+    valid version nor the name of another tag.  The `tag` property names
+    the missing tag and `referencedBy` names the tag that pointed at it.
+  * `resolveTags.TagCycleError` (`ETAGCYCLE`): the chain loops back on
+    itself.  The `chain` property holds the traversed tags and
+    `cycleTag` holds the tag at which the cycle closes (e.g.
+    `stable -> release -> stable` closes at `stable`).
+  * `resolveTags.VersionRangeError` (`ENOTINRANGE`): the chain ends at a
+    valid version, but that version does not satisfy the request's
+    range.  The `version` and `range` properties describe the mismatch.
+
+  The whole batch is validated before any result is returned, so a bad
+  request never produces partial results.  The manifest is never
+  mutated: resolved versions are not written back as a cache.  As
+  everywhere else, build metadata is ignored when determining whether a
+  version is in range; precedence follows the SemVer spec.
+
+  Try it: `npm run demo`
+
 ### Coercion
 
 * `coerce(version, options)`: Coerces a string to semver if possible

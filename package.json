@@ -6,6 +6,7 @@
   "scripts": {
     "test": "tap",
     "snap": "tap",
+    "demo": "node -e \"const semver=require('./'); const manifest={latest:'v2.1.0',stable:'release',release:'v1.2.3'}; console.log(JSON.stringify(semver.resolveTags(manifest,[{tag:'stable',range:'^1.0.0'}]),null,2))\"",
     "lint": "npm run eslint",
     "postlint": "template-oss-check",
     "lintfix": "npm run eslint -- --fix",
