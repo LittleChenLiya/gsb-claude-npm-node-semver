@@ -488,6 +488,43 @@ strings that they parse.
 * `diff(v1, v2)`: Returns the difference between two versions by the release type
   (`major`, `premajor`, `minor`, `preminor`, `patch`, `prepatch`, or `prerelease`),
   or null if the versions are the same.
+* `classify(v1, v2, looseOrOptions)`: Classifies the change from `v1` to `v2`
+  for release tooling. Unlike `diff`, it distinguishes build-only changes,
+  prerelease progression, formal releases, upgrades and downgrades, and
+  returns an object that keeps the evidence for the decision. Invalid
+  versions throw a `TypeError`; the third argument is the usual
+  `loose` boolean or options object.
+
+  The result has these fields:
+  * `type`: one of `build-only`, `none`, `prerelease`, `release`, `patch`,
+    `minor`, `major`, or `downgrade`.
+  * `level`: the main component crossed (`major`, `minor`, `patch`,
+    `prerelease`), or `null`.
+  * `comparison`: `-1`, `0`, or `1`, identical to `compare(v1, v2)`.
+  * `upgrade` / `downgrade`: direction of the change.
+  * `buildChanged`: whether the build metadata differs.
+  * `prerelease`: whether the target is a prerelease.
+  * `release`: whether a prerelease is finalized as its stable release.
+  * `potentiallyBreaking`: `true` for upgrades that stay in the `0.x` range,
+    where semver does not guarantee API stability. SemVer ordering is not
+    changed, so `0.2.1 -> 0.3.0` is still `minor`.
+  * `reasons`: an array of human-readable strings explaining the verdict.
+
+  Build metadata never affects precedence (`1.2.3+one -> 1.2.3+two` is
+  `build-only`, not an upgrade). Examples:
+  ```js
+  classify('1.2.3+one', '1.2.3+two').type // 'build-only'
+  classify('1.3.0-rc.1', '1.3.0').type // 'release'
+  classify('1.2.3', '1.2.2').type // 'downgrade'
+  classify('0.2.1', '0.3.0') // { type: 'minor', potentiallyBreaking: true }
+
+  // print the evidence behind a classification
+  const result = classify('1.3.0-rc.1', '1.3.0')
+  console.log(result.type) // release
+  console.log(result.reasons.join('\n'))
+  // "1.3.0" has higher SemVer precedence than "1.3.0-rc.1"
+  // prerelease "1.3.0-rc.1" is finalized as the stable release "1.3.0"
+  ```
 
 ### Sorting
 
@@ -643,6 +680,7 @@ The following modules are available:
 * `require('semver/classes/semver')`
 * `require('semver/functions/clean')`
 * `require('semver/functions/cmp')`
+* `require('semver/functions/classify')`
 * `require('semver/functions/coerce')`
 * `require('semver/functions/compare')`
 * `require('semver/functions/compare-build')`
