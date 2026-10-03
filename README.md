@@ -46,6 +46,7 @@ const semverValid = require('semver/functions/valid')
 const semverClean = require('semver/functions/clean')
 const semverInc = require('semver/functions/inc')
 const semverDiff = require('semver/functions/diff')
+const semverClassify = require('semver/functions/classify')
 const semverMajor = require('semver/functions/major')
 const semverMinor = require('semver/functions/minor')
 const semverPatch = require('semver/functions/patch')
@@ -488,6 +489,50 @@ strings that they parse.
 * `diff(v1, v2)`: Returns the difference between two versions by the release type
   (`major`, `premajor`, `minor`, `preminor`, `patch`, `prepatch`, or `prerelease`),
   or null if the versions are the same.
+* `classify(v1, v2, [options])`: Classifies the change from `v1` to `v2`, returning
+  an object that retains the basis for the judgment.  Invalid versions throw a
+  `TypeError` before any classification is attempted.  The result has the fields:
+  * `from` / `to`: the normalized versions (without build metadata), and
+    `fromRaw` / `toRaw` as given.
+  * `type`: one of `same`, `build-only`, `prerelease`, `release`, `patch`,
+    `minor`, `major`, or `regression`.  A change that only touches build metadata
+    is reported as `build-only` and never as an upgrade; a prerelease promoted to
+    a stable release is `release`; a downgrade is `regression`.
+  * `direction`: `upgrade`, `downgrade`, or `same`.
+  * `incompatible`: `true` for 0.x minor bumps.  Per the semver spec, `0.y.z` is
+    initial development and anything may change at any time, so a `0.2.1` ->
+    `0.3.0` change is classified as `minor` but flagged as potentially
+    incompatible.  This is a separate field and does not alter the (SemVer-based)
+    `type`.
+  * `reasons`: a list of human-readable strings explaining the judgment.
+
+```js
+const classify = require('semver/functions/classify')
+
+for (const [from, to] of [
+  ['1.2.3+one', '1.2.3+two'],
+  ['1.3.0-rc.1', '1.3.0'],
+  ['1.2.3', '1.2.2'],
+  ['0.2.1', '0.3.0'],
+]) {
+  const c = classify(from, to)
+  console.log(`${from} -> ${to}: ${c.type} (${c.direction})` +
+    (c.incompatible ? ' [potentially incompatible]' : ''))
+  for (const reason of c.reasons) {
+    console.log(`  - ${reason}`)
+  }
+}
+// 1.2.3+one -> 1.2.3+two: build-only (same)
+//   - versions have equal precedence 1.2.3 but differ in build metadata: +one vs +two
+//   - build metadata does not affect version precedence
+// 1.3.0-rc.1 -> 1.3.0: release (upgrade)
+//   - 1.3.0 is a stable release promoted from prerelease 1.3.0-rc.1
+// 1.2.3 -> 1.2.2: regression (downgrade)
+//   - patch version decreased
+// 0.2.1 -> 0.3.0: minor (upgrade) [potentially incompatible]
+//   - minor version increased
+//   - 0.x versions are for initial development; a minor bump may introduce incompatible changes (potential incompatibility)
+```
 
 ### Sorting
 
@@ -648,6 +693,7 @@ The following modules are available:
 * `require('semver/functions/compare-build')`
 * `require('semver/functions/compare-loose')`
 * `require('semver/functions/diff')`
+* `require('semver/functions/classify')`
 * `require('semver/functions/eq')`
 * `require('semver/functions/gt')`
 * `require('semver/functions/gte')`

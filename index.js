@@ -10,6 +10,7 @@ const valid = require('./functions/valid')
 const clean = require('./functions/clean')
 const inc = require('./functions/inc')
 const diff = require('./functions/diff')
+const classify = require('./functions/classify')
 const major = require('./functions/major')
 const minor = require('./functions/minor')
 const patch = require('./functions/patch')
@@ -49,6 +50,7 @@ module.exports = {
   clean,
   inc,
   diff,
+  classify,
   major,
   minor,
   patch,
