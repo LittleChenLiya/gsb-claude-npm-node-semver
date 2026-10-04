@@ -587,6 +587,55 @@ ex.
 * `s.clean('      2.1.5   ')`: `'2.1.5'`
 * `s.clean('~1.0.0')`: `null`
 
+### Upgrade Planning
+
+* `planUpgrade({ versions, edges, from, to, forbidden, options })`: Find the
+  shortest allowed upgrade chain from a start version to a target range.
+
+Given a list of published `versions`, a list of explicitly allowed upgrade
+`edges` (either `[from, to]` pairs or `{ from, to }` objects), a start
+version `from`, a target range `to`, and optional `forbidden` ranges, the
+planner walks only the declared edges (no edge, no jump) and returns the
+chain with the fewest steps.  Forbidden ranges may be used neither as
+intermediate stops nor as the resolved target.  Version comparison and
+prerelease matching follow the normal semver rules, so ranges never match
+prerelease versions unless `options.includePrerelease` is set.  Among
+chains of the same minimal length, the one whose full version sequence is
+lowest in semver order is chosen, so the plan is stable.
+
+```js
+const { planUpgrade } = require('semver')
+
+const plan = planUpgrade({
+  versions: ['1.0.0', '1.1.0', '1.2.0', '2.0.0'],
+  edges: [
+    ['1.0.0', '1.1.0'],
+    ['1.1.0', '2.0.0'],
+    ['1.0.0', '1.2.0'],
+    ['1.2.0', '2.0.0'],
+  ],
+  from: '1.0.0',
+  to: '2.0.0',
+  forbidden: ['1.2.x'],
+})
+// plan.chain === ['1.0.0', '1.1.0', '2.0.0']
+// plan.steps[i] names the allowed edge used: { from, to, edge, edgeIndex }
+// plan.explanation is a human-readable narrative of the plan
+```
+
+On failure `ok` is `false` and `reason` distinguishes the cause:
+
+* `'no-start'`: the start version is not published.
+* `'no-target'`: no published version satisfies the target range.
+* `'target-forbidden'`: every version satisfying the target range is
+  forbidden.
+* `'unreachable'`: allowed targets exist, but no allowed-edge chain reaches
+  one (edge restrictions or forbidden intermediate versions block the way;
+  see `reachable` and `blockedByForbidden`).
+
+See `docs/examples/plan-upgrade.js` for a runnable demo
+(`node docs/examples/plan-upgrade.js`).
+
 ## Constants
 
 As a convenience, helper constants are exported to provide information about what `node-semver` supports:
