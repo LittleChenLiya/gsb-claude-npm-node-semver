@@ -43,6 +43,7 @@ const ltr = require('./ranges/ltr')
 const intersects = require('./ranges/intersects')
 const simplifyRange = require('./ranges/simplify')
 const subset = require('./ranges/subset')
+const planUpgrade = require('./functions/plan-upgrade')
 module.exports = {
   parse,
   valid,
@@ -90,4 +91,5 @@ module.exports = {
   RELEASE_TYPES: constants.RELEASE_TYPES,
   compareIdentifiers: identifiers.compareIdentifiers,
   rcompareIdentifiers: identifiers.rcompareIdentifiers,
+  planUpgrade,
 }
