@@ -68,6 +68,17 @@ t.test('coercing', t => Promise.all([
   ['not a version', '-c'],
 ].map(args => t.resolveMatchSnapshot(run(args), args.join(' ')))))
 
+t.test('manifest index', t => Promise.all([
+  ['--index', '1.0.0+a', '2.0.0', '1.0.0+b', '1.0.0+a'],
+  ['--index', '-r', '1.x', '1.0.0+a', '1.0.0+b', '2.0.0', '2.0.0+build'],
+  ['--index', '-r', '^1.0.0', '1.0.0+a', '1.0.0+b'],
+  ['--index', '1.0.0', 'nope'],
+  ['--index'],
+  ['--index', '-i', 'major', '1.0.0'],
+  ['--index', '-c', '1.2.3.4.5.6', '2.0.0'],
+  ['--index', '-l', 'v1.0.0+a', 'v2.0.0'],
+].map(args => t.resolveMatchSnapshot(run(args), args.join(' ')))))
+
 t.test('args with equals', t => Promise.all([
   [['--version', '1.2.3'], '1.2.3'],
   [['--range', '1'], ['1.2.3'], ['2.3.4'], '1.2.3'],

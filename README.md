@@ -496,6 +496,61 @@ strings that they parse.
 * `rsort(versions)`: The reverse of `sort`. Returns an array of versions based on
   the `compareBuild` function in descending order.
 
+### Manifest Index
+
+* `manifest(versions[, options])`: Build a release manifest index from an array
+  of version strings.  Versions are sorted by semver precedence, but versions
+  that differ only in build metadata (e.g. `1.0.0+a` and `1.0.0+b`) are kept as
+  distinct identities in the same precedence group, and entries within a group
+  keep their original input order.  Duplicate full versions are merged into a
+  single entry whose `sources` array remembers every position the version came
+  from, without losing any of them.
+
+  Every input is parsed up front as a batch: if any single version is invalid,
+  the whole batch is rejected with a `TypeError` and no index is produced.
+
+  The returned `Manifest` object has:
+
+  * `entries`: An array of `ManifestEntry` objects in precedence order.  Each
+    entry has a `version` (the parsed `SemVer`), a `raw` (the original input
+    string), a `full` (the canonical full identity including build metadata),
+    and a `sources` array of input positions.
+  * `versions`: The canonical full version identities in precedence order.
+  * `length`: The number of distinct identities.
+  * `range(ranges[, options])`: Return every real version identity that
+    satisfies the supplied range (or array of ranges).  Build metadata is
+    never used for range comparison, so `range('1.0.0')` matches both
+    `1.0.0+a` and `1.0.0+b`.
+  * `satisfies(range[, options])`: An alias for `range()`.
+
+  ```js
+  const idx = semver.manifest(['1.0.0+a', '2.0.0', '1.0.0+b', '1.0.0+a'])
+
+  idx.versions // ['1.0.0+a', '1.0.0+b', '2.0.0']
+  idx.entries[0].sources // [0, 3]
+  idx.range('1.x') // entries for 1.0.0+a and 1.0.0+b
+  idx.range('1.0.0')[0].full // '1.0.0+a'
+
+  // Any invalid version rejects the whole batch:
+  semver.manifest(['1.0.0', 'nope']) // TypeError: Invalid version at index 1
+  ```
+
+  The same index is available from the command line with the `--index` flag:
+
+  ```
+  $ semver --index 1.0.0+a 2.0.0 1.0.0+b 1.0.0+a
+  1.0.0+a (0, 3)
+  1.0.0+b (2)
+  2.0.0 (1)
+
+  $ semver --index -r 1.x 1.0.0+a 1.0.0+b 2.0.0
+  1.0.0+a (0)
+  1.0.0+b (1)
+  ```
+
+  With `--index`, an invalid version makes the command exit non-zero without
+  printing anything, and `-r` queries return every matching identity.
+
 ### Comparators
 
 * `intersects(comparator)`: Return true if the comparators intersect

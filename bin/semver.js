@@ -32,6 +32,8 @@ const parseOptions = require('../internal/parse-options')
 
 let reverse = false
 
+let index = false
+
 let options = {}
 
 const main = () => {
@@ -82,6 +84,9 @@ const main = () => {
       case '-c': case '--coerce':
         coerce = true
         break
+      case '--index':
+        index = true
+        break
       case '--rtl':
         rtl = true
         break
@@ -97,6 +102,38 @@ const main = () => {
   }
 
   options = parseOptions({ loose, includePrerelease, rtl })
+
+  if (index) {
+    if (inc) {
+      return failIndex()
+    }
+
+    const input = versions.map((v) => {
+      return coerce ? (semver.coerce(v, options) || { version: v }).version : v
+    })
+
+    // Batch validation: manifest() throws if any single version is invalid,
+    // so an invalid item produces no index at all.
+    let manifest
+    try {
+      manifest = semver.manifest(input, options)
+    } catch (er) {
+      console.error(er.message)
+      return fail()
+    }
+
+    // Range queries return every real version identity; build metadata is
+    // never used for range comparison.
+    const entries = range.length ? manifest.range(range, options) : [...manifest]
+    if (!entries.length) {
+      return fail()
+    }
+
+    entries
+      .map((entry) => `${entry.full} (${entry.sources.join(', ')})`)
+      .forEach(line => console.log(line))
+    return
+  }
 
   if (
     inc &&
@@ -135,6 +172,11 @@ const main = () => {
 
 const failInc = () => {
   console.error('--inc can only be used on a single version with no range')
+  fail()
+}
+
+const failIndex = () => {
+  console.error('--index can not be combined with --inc')
   fail()
 }
 
@@ -178,6 +220,27 @@ Options:
 
 --ltr
         Coerce version strings left to right (default)
+
+--index
+        Build a release manifest index instead of printing sorted versions.
+        Versions are sorted by SemVer precedence; versions that differ only
+        in build metadata (e.g. 1.0.0+a and 1.0.0+b) are distinct entries
+        that share a precedence group, and entries in the same group keep
+        their original input order.  Duplicate full versions are merged and
+        every source position is printed in parentheses.  If any supplied
+        version is invalid, the whole batch is rejected and nothing is
+        printed.  When combined with -r, range queries return every real
+        version identity; build metadata is never used for comparison.
+
+        Example:
+          semver --index 1.0.0+a 2.0.0 1.0.0+b 1.0.0+a
+          1.0.0+a (0, 3)
+          1.0.0+b (1)
+          2.0.0 (2)
+
+          semver --index -r 1.x 1.0.0+a 1.0.0+b 2.0.0
+          1.0.0+a (0)
+          1.0.0+b (1)
 
 -n <base>
         Base number to be used for the prerelease identifier.

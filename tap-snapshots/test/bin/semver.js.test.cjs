@@ -93,6 +93,27 @@ Object {
     --ltr
             Coerce version strings left to right (default)
     
+    --index
+            Build a release manifest index instead of printing sorted versions.
+            Versions are sorted by SemVer precedence; versions that differ only
+            in build metadata (e.g. 1.0.0+a and 1.0.0+b) are distinct entries
+            that share a precedence group, and entries in the same group keep
+            their original input order.  Duplicate full versions are merged and
+            every source position is printed in parentheses.  If any supplied
+            version is invalid, the whole batch is rejected and nothing is
+            printed.  When combined with -r, range queries return every real
+            version identity; build metadata is never used for comparison.
+    
+            Example:
+              semver --index 1.0.0+a 2.0.0 1.0.0+b 1.0.0+a
+              1.0.0+a (0, 3)
+              1.0.0+b (1)
+              2.0.0 (2)
+    
+              semver --index -r 1.x 1.0.0+a 1.0.0+b 2.0.0
+              1.0.0+a (0)
+              1.0.0+b (1)
+    
     -n <base>
             Base number to be used for the prerelease identifier.
             Can be either 0 or 1, or false to omit the number altogether.
@@ -153,6 +174,27 @@ Object {
     
     --ltr
             Coerce version strings left to right (default)
+    
+    --index
+            Build a release manifest index instead of printing sorted versions.
+            Versions are sorted by SemVer precedence; versions that differ only
+            in build metadata (e.g. 1.0.0+a and 1.0.0+b) are distinct entries
+            that share a precedence group, and entries in the same group keep
+            their original input order.  Duplicate full versions are merged and
+            every source position is printed in parentheses.  If any supplied
+            version is invalid, the whole batch is rejected and nothing is
+            printed.  When combined with -r, range queries return every real
+            version identity; build metadata is never used for comparison.
+    
+            Example:
+              semver --index 1.0.0+a 2.0.0 1.0.0+b 1.0.0+a
+              1.0.0+a (0, 3)
+              1.0.0+b (1)
+              2.0.0 (2)
+    
+              semver --index -r 1.x 1.0.0+a 1.0.0+b 2.0.0
+              1.0.0+a (0)
+              1.0.0+b (1)
     
     -n <base>
             Base number to be used for the prerelease identifier.
@@ -215,6 +257,27 @@ Object {
     --ltr
             Coerce version strings left to right (default)
     
+    --index
+            Build a release manifest index instead of printing sorted versions.
+            Versions are sorted by SemVer precedence; versions that differ only
+            in build metadata (e.g. 1.0.0+a and 1.0.0+b) are distinct entries
+            that share a precedence group, and entries in the same group keep
+            their original input order.  Duplicate full versions are merged and
+            every source position is printed in parentheses.  If any supplied
+            version is invalid, the whole batch is rejected and nothing is
+            printed.  When combined with -r, range queries return every real
+            version identity; build metadata is never used for comparison.
+    
+            Example:
+              semver --index 1.0.0+a 2.0.0 1.0.0+b 1.0.0+a
+              1.0.0+a (0, 3)
+              1.0.0+b (1)
+              2.0.0 (2)
+    
+              semver --index -r 1.x 1.0.0+a 1.0.0+b 2.0.0
+              1.0.0+a (0)
+              1.0.0+b (1)
+    
     -n <base>
             Base number to be used for the prerelease identifier.
             Can be either 0 or 1, or false to omit the number altogether.
@@ -275,6 +338,27 @@ Object {
     
     --ltr
             Coerce version strings left to right (default)
+    
+    --index
+            Build a release manifest index instead of printing sorted versions.
+            Versions are sorted by SemVer precedence; versions that differ only
+            in build metadata (e.g. 1.0.0+a and 1.0.0+b) are distinct entries
+            that share a precedence group, and entries in the same group keep
+            their original input order.  Duplicate full versions are merged and
+            every source position is printed in parentheses.  If any supplied
+            version is invalid, the whole batch is rejected and nothing is
+            printed.  When combined with -r, range queries return every real
+            version identity; build metadata is never used for comparison.
+    
+            Example:
+              semver --index 1.0.0+a 2.0.0 1.0.0+b 1.0.0+a
+              1.0.0+a (0, 3)
+              1.0.0+b (1)
+              2.0.0 (2)
+    
+              semver --index -r 1.x 1.0.0+a 1.0.0+b 2.0.0
+              1.0.0+a (0)
+              1.0.0+b (1)
     
     -n <base>
             Base number to be used for the prerelease identifier.
@@ -371,6 +455,99 @@ Object {
   "code": 0,
   "err": "",
   "out": "1.0.0\\n",
+  "signal": null,
+}
+`
+
+exports[`test/bin/semver.js TAP manifest index > --index -c 1.2.3.4.5.6 2.0.0 1`] = `
+Object {
+  "code": 0,
+  "err": "",
+  "out": String(
+    1.2.3 (0)
+    2.0.0 (1)
+    
+  ),
+  "signal": null,
+}
+`
+
+exports[`test/bin/semver.js TAP manifest index > --index -i major 1.0.0 1`] = `
+Object {
+  "code": 1,
+  "err": "--index can not be combined with --inc\\n",
+  "out": "",
+  "signal": null,
+}
+`
+
+exports[`test/bin/semver.js TAP manifest index > --index -l v1.0.0+a v2.0.0 1`] = `
+Object {
+  "code": 0,
+  "err": "",
+  "out": String(
+    1.0.0+a (0)
+    2.0.0 (1)
+    
+  ),
+  "signal": null,
+}
+`
+
+exports[`test/bin/semver.js TAP manifest index > --index -r 1.x 1.0.0+a 1.0.0+b 2.0.0 2.0.0+build 1`] = `
+Object {
+  "code": 0,
+  "err": "",
+  "out": String(
+    1.0.0+a (0)
+    1.0.0+b (1)
+    
+  ),
+  "signal": null,
+}
+`
+
+exports[`test/bin/semver.js TAP manifest index > --index -r ^1.0.0 1.0.0+a 1.0.0+b 1`] = `
+Object {
+  "code": 0,
+  "err": "",
+  "out": String(
+    1.0.0+a (0)
+    1.0.0+b (1)
+    
+  ),
+  "signal": null,
+}
+`
+
+exports[`test/bin/semver.js TAP manifest index > --index 1`] = `
+Object {
+  "code": 1,
+  "err": "",
+  "out": "",
+  "signal": null,
+}
+`
+
+exports[`test/bin/semver.js TAP manifest index > --index 1.0.0 nope 1`] = `
+Object {
+  "code": 1,
+  "err": "Invalid version at index 1: nope\\n",
+  "out": "",
+  "signal": null,
+}
+`
+
+exports[`test/bin/semver.js TAP manifest index > --index 1.0.0+a 2.0.0 1.0.0+b 1.0.0+a 1`] = `
+Object {
+  "code": 0,
+  "err": "",
+  "out": String(
+    1.0.0+a (0, 3)
+    1.0.0+b (2)
+    2.0.0 (1)
+    
+  ),
   "signal": null,
 }
 `
