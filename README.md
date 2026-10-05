@@ -496,6 +496,53 @@ strings that they parse.
 * `rsort(versions)`: The reverse of `sort`. Returns an array of versions based on
   the `compareBuild` function in descending order.
 
+### Release Manifest Index
+
+* `releaseIndex(versions)`: Builds an index over a release manifest (an
+  array of version strings), ordered by semver precedence. Build
+  metadata is never used for ordering, so `1.0.0+a` and `1.0.0+b` share
+  one precedence group while keeping their distinct identities. Entries
+  within a precedence group keep their original input order (stable
+  sort). Exact duplicate full versions are merged into a single entry
+  whose `sources` array records every input position. If any item is not
+  a valid version, the whole batch is rejected with a `TypeError` and no
+  index is produced.
+
+The returned index has:
+
+* `entries`: ordered array of `{ version, precedence, sources }`, where
+  `version` is the full identity including build metadata, `precedence`
+  is the version without build metadata, and `sources` lists every input
+  position that produced this entry.
+* `query(range)`: returns every real version identity (build metadata
+  included) whose precedence satisfies the range. Build metadata is
+  ignored for the comparison itself.
+
+Example, run directly with Node:
+
+```sh
+node -e "const releaseIndex = require('semver/functions/release-index'); \
+  const idx = releaseIndex(['1.0.0+a', '1.0.0+b', '0.9.0', '1.0.0+a']); \
+  console.log(JSON.stringify(idx.entries, null, 2)); \
+  console.log(idx.query('^1.0.0'))"
+```
+
+```js
+const releaseIndex = require('semver/functions/release-index')
+
+const index = releaseIndex(['1.0.0+a', '1.0.0+b', '0.9.0', '1.0.0+a'])
+
+index.entries
+// [
+//   { version: '0.9.0',   precedence: '0.9.0', sources: [2] },
+//   { version: '1.0.0+a', precedence: '1.0.0', sources: [0, 3] },
+//   { version: '1.0.0+b', precedence: '1.0.0', sources: [1] },
+// ]
+
+index.query('1.0.0')  // ['1.0.0+a', '1.0.0+b']
+index.query('^1.0.0') // ['1.0.0+a', '1.0.0+b']
+```
+
 ### Comparators
 
 * `intersects(comparator)`: Return true if the comparators intersect
@@ -661,6 +708,7 @@ The following modules are available:
 * `require('semver/functions/patch')`
 * `require('semver/functions/prerelease')`
 * `require('semver/functions/rcompare')`
+* `require('semver/functions/release-index')`
 * `require('semver/functions/rsort')`
 * `require('semver/functions/satisfies')`
 * `require('semver/functions/sort')`
