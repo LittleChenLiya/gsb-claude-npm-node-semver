@@ -213,6 +213,13 @@ class Range {
     }
     return false
   }
+
+  // explicit range interpreter: reports which OR branch accepts or
+  // rejects the version, splitting numeric comparison from prerelease
+  // admission. See ranges/explain.js for the full report shape.
+  explain (version) {
+    return explainRange(version, this)
+  }
 }
 
 module.exports = Range
@@ -233,6 +240,7 @@ const {
   caretTrimReplace,
 } = require('../internal/re')
 const { FLAG_INCLUDE_PRERELEASE, FLAG_LOOSE } = require('../internal/constants')
+const explainRange = require('../ranges/explain')
 
 // unbounded global build-metadata stripper used by parseRange
 const BUILDSTRIPRE = new RegExp(src[t.BUILD], 'g')
