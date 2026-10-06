@@ -38,6 +38,14 @@ t.test('inc tests', t => Promise.all([
   ['-i', 'invalid', '1.0.0'], // invalid -i value, should warn
 ].map(args => t.resolveMatchSnapshot(run(args), args.join(' ')))))
 
+t.test('subtract ranges', t => Promise.all([
+  ['--subtract', '>=1.0.0 <3.0.0', '>=1.5.0 <2.0.0'],
+  ['--subtract', '>=1.0.0 <2.0.0', '*'],
+  ['--subtract', '>=1.0.0-0 <2.0.0', '>=1.5.0-0 <1.5.0', '-p'],
+  ['--subtract', 'not-a-range', '*'],
+  ['--subtract', '>=1.0.0'],
+].map(args => t.resolveMatchSnapshot(run(args), args.join(' ')))))
+
 t.test('help output', t => Promise.all([
   ['-h'],
   ['-?'],

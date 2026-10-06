@@ -93,6 +93,12 @@ Object {
     --ltr
             Coerce version strings left to right (default)
     
+    --subtract <allowed-range> <blocked-range>
+            Subtract the blocked range from the allowed range and print
+            the remaining range fragments, each with its minimum
+            satisfying version.  Prints <empty> when nothing remains.
+            Respects -p/--include-prerelease.
+    
     -n <base>
             Base number to be used for the prerelease identifier.
             Can be either 0 or 1, or false to omit the number altogether.
@@ -153,6 +159,12 @@ Object {
     
     --ltr
             Coerce version strings left to right (default)
+    
+    --subtract <allowed-range> <blocked-range>
+            Subtract the blocked range from the allowed range and print
+            the remaining range fragments, each with its minimum
+            satisfying version.  Prints <empty> when nothing remains.
+            Respects -p/--include-prerelease.
     
     -n <base>
             Base number to be used for the prerelease identifier.
@@ -215,6 +227,12 @@ Object {
     --ltr
             Coerce version strings left to right (default)
     
+    --subtract <allowed-range> <blocked-range>
+            Subtract the blocked range from the allowed range and print
+            the remaining range fragments, each with its minimum
+            satisfying version.  Prints <empty> when nothing remains.
+            Respects -p/--include-prerelease.
+    
     -n <base>
             Base number to be used for the prerelease identifier.
             Can be either 0 or 1, or false to omit the number altogether.
@@ -275,6 +293,12 @@ Object {
     
     --ltr
             Coerce version strings left to right (default)
+    
+    --subtract <allowed-range> <blocked-range>
+            Subtract the blocked range from the allowed range and print
+            the remaining range fragments, each with its minimum
+            satisfying version.  Prints <empty> when nothing remains.
+            Respects -p/--include-prerelease.
     
     -n <base>
             Base number to be used for the prerelease identifier.
@@ -513,6 +537,59 @@ Object {
     2.3.4
     
   ),
+  "signal": null,
+}
+`
+
+exports[`test/bin/semver.js TAP subtract ranges > --subtract >=1.0.0 1`] = `
+Object {
+  "code": 1,
+  "err": "Usage: semver --subtract <allowed-range> <blocked-range>\\n",
+  "out": "",
+  "signal": null,
+}
+`
+
+exports[`test/bin/semver.js TAP subtract ranges > --subtract >=1.0.0 <2.0.0 * 1`] = `
+Object {
+  "code": 0,
+  "err": "",
+  "out": "<empty>\\n",
+  "signal": null,
+}
+`
+
+exports[`test/bin/semver.js TAP subtract ranges > --subtract >=1.0.0 <3.0.0 >=1.5.0 <2.0.0 1`] = `
+Object {
+  "code": 0,
+  "err": "",
+  "out": String(
+    >=1.0.0 <1.5.0  (min: 1.0.0)
+    >=2.0.0 <3.0.0  (min: 2.0.0)
+    
+  ),
+  "signal": null,
+}
+`
+
+exports[`test/bin/semver.js TAP subtract ranges > --subtract >=1.0.0-0 <2.0.0 >=1.5.0-0 <1.5.0 -p 1`] = `
+Object {
+  "code": 0,
+  "err": "",
+  "out": String(
+    >=1.0.0-0 <1.5.0-0  (min: 1.0.0-0)
+    >=1.5.0 <2.0.0  (min: 1.5.0)
+    
+  ),
+  "signal": null,
+}
+`
+
+exports[`test/bin/semver.js TAP subtract ranges > --subtract not-a-range * 1`] = `
+Object {
+  "code": 1,
+  "err": "Invalid comparator: not-a-range\\n",
+  "out": "",
   "signal": null,
 }
 `

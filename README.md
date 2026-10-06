@@ -81,6 +81,7 @@ const semverLtr = require('semver/ranges/ltr')
 const semverIntersects = require('semver/ranges/intersects')
 const semverSimplifyRange = require('semver/ranges/simplify')
 const semverRangeSubset = require('semver/ranges/subset')
+const semverSubtractRange = require('semver/ranges/subtract')
 ```
 
 As a command-line utility:
@@ -127,6 +128,12 @@ Options:
 
 --ltr
         Coerce version strings left to right (default)
+
+--subtract <allowed-range> <blocked-range>
+        Subtract the blocked range from the allowed range and print
+        the remaining range fragments, each with its minimum
+        satisfying version.  Prints <empty> when nothing remains.
+        Respects -p/--include-prerelease.
 
 Program exits successfully if any valid version satisfies
 all supplied ranges, and prints all satisfying versions.
@@ -530,6 +537,30 @@ strings that they parse.
   generated range, then that is returned.
 * `subset(subRange, superRange)`: Return `true` if the `subRange` range is
   entirely contained by the `superRange` range.
+* `subtractRange(allowed, blocked, options)`: Return the exact set
+  difference of two ranges: the versions that satisfy `allowed` but do
+  not satisfy `blocked`.  Both inputs must parse to a finite set of
+  comparator conjunctions (any valid range qualifies, including `||`
+  unions, open/closed bounds, and prerelease bounds; prerelease matching
+  follows the `includePrerelease` option as usual).  The difference is
+  computed symbolically on version intervals, not by sampling versions.
+  The result is an object:
+  * `range`: the difference as a single range string (fragments joined
+    with `||`) that can be parsed again, or `null` when the difference
+    is empty.
+  * `fragments`: an array of `{ range, minVersion }` objects, one per
+    non-empty fragment, where `minVersion` is the lowest version
+    satisfying that fragment (a witness that the fragment is non-empty).
+  * `diagnostics`: an array of `{ code, message }` objects describing
+    any part of the difference that could not be expressed exactly in
+    the range grammar.  Such parts are omitted from the result rather
+    than silently widened.  This is empty for all inputs the function
+    supports.
+  The input `Range` objects are never mutated.  For example,
+  `subtractRange('>=1.0.0 <3.0.0', '>=1.5.0 <2.0.0')` returns the
+  fragments `>=1.0.0 <1.5.0` (min `1.0.0`) and `>=2.0.0 <3.0.0`
+  (min `2.0.0`).  The same computation is available on the command line
+  as `semver --subtract <allowed-range> <blocked-range>`.
 
 Note that, since ranges may be non-contiguous, a version might not be
 greater than a range, less than a range, *or* satisfy a range!  For
@@ -675,6 +706,7 @@ The following modules are available:
 * `require('semver/ranges/outside')`
 * `require('semver/ranges/simplify')`
 * `require('semver/ranges/subset')`
+* `require('semver/ranges/subtract')`
 * `require('semver/ranges/to-comparators')`
 * `require('semver/ranges/valid')`
 

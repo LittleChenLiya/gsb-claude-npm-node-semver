@@ -34,6 +34,36 @@ let reverse = false
 
 let options = {}
 
+let subtract = null
+
+const runSubtract = () => {
+  if (!subtract.allowed || !subtract.blocked) {
+    console.error('Usage: semver --subtract <allowed-range> <blocked-range>')
+    return fail()
+  }
+  let result
+  try {
+    result = semver.subtractRange(subtract.allowed, subtract.blocked, options)
+  } catch (er) {
+    console.error(er.message)
+    return fail()
+  }
+  // istanbul ignore next: diagnostics are only produced for hand-doctored
+  // Range inputs, which the CLI never passes
+  for (const d of result.diagnostics) {
+    console.error(`cannot express difference exactly: ${d.message}`)
+  }
+  if (result.fragments.length) {
+    for (const f of result.fragments) {
+      console.log(`${f.range}  (min: ${f.minVersion})`)
+    }
+  } else {
+    console.log('<empty>')
+  }
+  // istanbul ignore next: diagnostics are not reachable from the CLI
+  process.exit(result.diagnostics.length ? 1 : 0)
+}
+
 const main = () => {
   if (!argv.length) {
     return help()
@@ -88,6 +118,9 @@ const main = () => {
       case '--ltr':
         rtl = false
         break
+      case '--subtract':
+        subtract = { allowed: argv.shift(), blocked: argv.shift() }
+        break
       case '-h': case '--help': case '-?':
         return help()
       default:
@@ -97,6 +130,10 @@ const main = () => {
   }
 
   options = parseOptions({ loose, includePrerelease, rtl })
+
+  if (subtract) {
+    return runSubtract()
+  }
 
   if (
     inc &&
@@ -178,6 +215,12 @@ Options:
 
 --ltr
         Coerce version strings left to right (default)
+
+--subtract <allowed-range> <blocked-range>
+        Subtract the blocked range from the allowed range and print
+        the remaining range fragments, each with its minimum
+        satisfying version.  Prints <empty> when nothing remains.
+        Respects -p/--include-prerelease.
 
 -n <base>
         Base number to be used for the prerelease identifier.
