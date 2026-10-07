@@ -81,6 +81,7 @@ const semverLtr = require('semver/ranges/ltr')
 const semverIntersects = require('semver/ranges/intersects')
 const semverSimplifyRange = require('semver/ranges/simplify')
 const semverRangeSubset = require('semver/ranges/subset')
+const semverSubtractRange = require('semver/ranges/subtract')
 ```
 
 As a command-line utility:
@@ -97,6 +98,12 @@ Prints valid versions sorted by SemVer precedence
 Options:
 -r --range <range>
         Print versions that match the specified range.
+
+--subtract <range>
+        Compute the difference of the single --range <allowed> minus
+        <range>, and print the result as re-parseable range fragments,
+        each annotated with its minimum satisfying version.
+        May be repeated to subtract a union of ranges.
 
 -i --increment [<level>]
         Increment a version by the specified level.  Level can
@@ -530,6 +537,40 @@ strings that they parse.
   generated range, then that is returned.
 * `subset(subRange, superRange)`: Return `true` if the `subRange` range is
   entirely contained by the `superRange` range.
+* `subtractRange(allowedRange, blockedRange)`: Return the exact set
+  difference of two ranges: the versions that satisfy `allowedRange` and
+  do not satisfy `blockedRange`.  Both inputs may be range strings or
+  `Range` objects (which are only read, never mutated), and the
+  `includePrerelease` option is honored the same way `satisfies()`
+  honors it.  The result is an object:
+  ```js
+  {
+    expressible: true,
+    // canonical difference as a single re-parseable range string;
+    // the null range '<0.0.0-0' when the difference is empty
+    range: '>=1.0.0 <1.5.0 || >=2.0.0 <3.0.0',
+    // one entry per non-empty fragment, with the smallest version
+    // satisfying it
+    fragments: [
+      { range: '>=1.0.0 <1.5.0', minVersion: '1.0.0' },
+      { range: '>=2.0.0 <3.0.0', minVersion: '2.0.0' },
+    ],
+  }
+  ```
+  If the difference cannot be expressed exactly in range syntax, the
+  result is `{ expressible: false, range: null, fragments: null, reason }
+  ` instead, and the range is never silently widened.  For example:
+  ```js
+  subtractRange('>=1.0.0 <3.0.0', '>=1.5.0 <2.0.0').range
+  // '>=1.0.0 <1.5.0 || >=2.0.0 <3.0.0'
+  ```
+  The same computation is available on the command line, which prints
+  each fragment with its minimum satisfying version:
+  ```bash
+  $ semver --range '>=1.0.0 <3.0.0' --subtract '>=1.5.0 <2.0.0'
+  >=1.0.0 <1.5.0 (min: 1.0.0)
+  >=2.0.0 <3.0.0 (min: 2.0.0)
+  ```
 
 Note that, since ranges may be non-contiguous, a version might not be
 greater than a range, less than a range, *or* satisfy a range!  For
@@ -675,6 +716,7 @@ The following modules are available:
 * `require('semver/ranges/outside')`
 * `require('semver/ranges/simplify')`
 * `require('semver/ranges/subset')`
+* `require('semver/ranges/subtract')`
 * `require('semver/ranges/to-comparators')`
 * `require('semver/ranges/valid')`
 

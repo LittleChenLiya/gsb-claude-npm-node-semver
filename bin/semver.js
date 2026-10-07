@@ -11,6 +11,8 @@ let versions = []
 
 const range = []
 
+const subtract = []
+
 let inc = null
 
 const version = require('../package.json').version
@@ -73,6 +75,9 @@ const main = () => {
       case '-r': case '--range':
         range.push(argv.shift())
         break
+      case '--subtract':
+        subtract.push(argv.shift())
+        break
       case '-n':
         identifierBase = argv.shift()
         if (identifierBase === 'false') {
@@ -97,6 +102,10 @@ const main = () => {
   }
 
   options = parseOptions({ loose, includePrerelease, rtl })
+
+  if (subtract.length) {
+    return subtractRanges()
+  }
 
   if (
     inc &&
@@ -138,6 +147,24 @@ const failInc = () => {
   fail()
 }
 
+const subtractRanges = () => {
+  if (range.length !== 1 || versions.length || inc) {
+    console.error('--subtract requires exactly one --range, and no versions or --inc')
+    return fail()
+  }
+  const result = semver.subtractRange(range[0], subtract.join(' || '), options)
+  if (!result.expressible) {
+    console.error(`cannot express difference as a range: ${result.reason}`)
+    return fail()
+  }
+  if (!result.fragments.length) {
+    // the empty difference, as a re-parseable null range
+    console.log(result.range)
+    return
+  }
+  result.fragments.forEach(f => console.log(`${f.range} (min: ${f.minVersion})`))
+}
+
 const fail = () => process.exit(1)
 
 const help = () => console.log(
@@ -152,6 +179,12 @@ Prints valid versions sorted by SemVer precedence
 Options:
 -r --range <range>
         Print versions that match the specified range.
+
+--subtract <range>
+        Compute the difference of the single --range <allowed> minus
+        <range>, and print the result as re-parseable range fragments,
+        each annotated with its minimum satisfying version.
+        May be repeated to subtract a union of ranges.
 
 -i --increment [<level>]
         Increment a version by the specified level.  Level can

@@ -60,6 +60,17 @@ t.test('sorting and filtering', t => Promise.all([
   ['1.2.3', '3.2.1', '-r', '2.x'],
 ].map(args => t.resolveMatchSnapshot(run(args), args.join(' ')))))
 
+t.test('subtract', t => Promise.all([
+  ['--subtract', '>=1.5.0 <2.0.0', '-r', '>=1.0.0 <3.0.0'],
+  ['--subtract', '*', '-r', '1.2.3'],
+  ['--subtract', '<0.0.0-0', '-r', '>=1.0.0-alpha <2.0.0'],
+  ['--subtract', '>=1.5.0 <2.0.0', '--subtract', '2.5.0', '-r', '>=1.0.0 <3.0.0'],
+  ['-p', '--subtract', '>=1.5.0 <2.0.0', '-r', '>=1.0.0 <3.0.0'],
+  ['--subtract', '>=1.5.0 <2.0.0'],
+  ['--subtract', '>=1.5.0 <2.0.0', '-r', '>=1.0.0 <3.0.0', '1.2.3'],
+  ['--subtract', '<0.0.0-0', '-r', `>1.2.3-${'a'.repeat(249)}`],
+].map(args => t.resolveMatchSnapshot(run(args), args.join(' ')))))
+
 t.test('coercing', t => Promise.all([
   ['1.2.3.4.5.6', '-c'],
   ['1.2.3.4.5.6', '-c', '--rtl'],

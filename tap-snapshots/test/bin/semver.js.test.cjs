@@ -67,6 +67,12 @@ Object {
     -r --range <range>
             Print versions that match the specified range.
     
+    --subtract <range>
+            Compute the difference of the single --range <allowed> minus
+            <range>, and print the result as re-parseable range fragments,
+            each annotated with its minimum satisfying version.
+            May be repeated to subtract a union of ranges.
+    
     -i --increment [<level>]
             Increment a version by the specified level.  Level can
             be one of: major, minor, patch, premajor, preminor,
@@ -127,6 +133,12 @@ Object {
     Options:
     -r --range <range>
             Print versions that match the specified range.
+    
+    --subtract <range>
+            Compute the difference of the single --range <allowed> minus
+            <range>, and print the result as re-parseable range fragments,
+            each annotated with its minimum satisfying version.
+            May be repeated to subtract a union of ranges.
     
     -i --increment [<level>]
             Increment a version by the specified level.  Level can
@@ -189,6 +201,12 @@ Object {
     -r --range <range>
             Print versions that match the specified range.
     
+    --subtract <range>
+            Compute the difference of the single --range <allowed> minus
+            <range>, and print the result as re-parseable range fragments,
+            each annotated with its minimum satisfying version.
+            May be repeated to subtract a union of ranges.
+    
     -i --increment [<level>]
             Increment a version by the specified level.  Level can
             be one of: major, minor, patch, premajor, preminor,
@@ -249,6 +267,12 @@ Object {
     Options:
     -r --range <range>
             Print versions that match the specified range.
+    
+    --subtract <range>
+            Compute the difference of the single --range <allowed> minus
+            <range>, and print the result as re-parseable range fragments,
+            each annotated with its minimum satisfying version.
+            May be repeated to subtract a union of ranges.
     
     -i --increment [<level>]
             Increment a version by the specified level.  Level can
@@ -511,6 +535,95 @@ Object {
     2.0.0-asdf
     2.3.4-beta
     2.3.4
+    
+  ),
+  "signal": null,
+}
+`
+
+exports[`test/bin/semver.js TAP subtract > --subtract * -r 1.2.3 1`] = `
+Object {
+  "code": 0,
+  "err": "",
+  "out": "<0.0.0-0\\n",
+  "signal": null,
+}
+`
+
+exports[`test/bin/semver.js TAP subtract > --subtract <0.0.0-0 -r >1.2.3-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa 1`] = `
+Object {
+  "code": 1,
+  "err": "cannot express difference as a range: cannot construct version: version is longer than 256 characters\\n",
+  "out": "",
+  "signal": null,
+}
+`
+
+exports[`test/bin/semver.js TAP subtract > --subtract <0.0.0-0 -r >=1.0.0-alpha <2.0.0 1`] = `
+Object {
+  "code": 0,
+  "err": "",
+  "out": String(
+    >=1.0.0-0 >=1.0.0-alpha <1.0.0 (min: 1.0.0-alpha)
+    >=1.0.0 <2.0.0 (min: 1.0.0)
+    
+  ),
+  "signal": null,
+}
+`
+
+exports[`test/bin/semver.js TAP subtract > --subtract >=1.5.0 <2.0.0 --subtract 2.5.0 -r >=1.0.0 <3.0.0 1`] = `
+Object {
+  "code": 0,
+  "err": "",
+  "out": String(
+    >=1.0.0 <1.5.0 (min: 1.0.0)
+    >=2.0.0 <2.5.0 (min: 2.0.0)
+    >2.5.0 <3.0.0 (min: 2.5.1)
+    
+  ),
+  "signal": null,
+}
+`
+
+exports[`test/bin/semver.js TAP subtract > --subtract >=1.5.0 <2.0.0 -r >=1.0.0 <3.0.0 1`] = `
+Object {
+  "code": 0,
+  "err": "",
+  "out": String(
+    >=1.0.0 <1.5.0 (min: 1.0.0)
+    >=2.0.0 <3.0.0 (min: 2.0.0)
+    
+  ),
+  "signal": null,
+}
+`
+
+exports[`test/bin/semver.js TAP subtract > --subtract >=1.5.0 <2.0.0 -r >=1.0.0 <3.0.0 1.2.3 1`] = `
+Object {
+  "code": 1,
+  "err": "--subtract requires exactly one --range, and no versions or --inc\\n",
+  "out": "",
+  "signal": null,
+}
+`
+
+exports[`test/bin/semver.js TAP subtract > --subtract >=1.5.0 <2.0.0 1`] = `
+Object {
+  "code": 1,
+  "err": "--subtract requires exactly one --range, and no versions or --inc\\n",
+  "out": "",
+  "signal": null,
+}
+`
+
+exports[`test/bin/semver.js TAP subtract > -p --subtract >=1.5.0 <2.0.0 -r >=1.0.0 <3.0.0 1`] = `
+Object {
+  "code": 0,
+  "err": "",
+  "out": String(
+    >=1.0.0 <1.5.0 (min: 1.0.0)
+    >=2.0.0 <3.0.0 (min: 2.0.0)
     
   ),
   "signal": null,
